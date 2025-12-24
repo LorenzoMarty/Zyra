@@ -14,7 +14,9 @@ Endpoint: `http://localhost:3001/search?q=iphone`
 1. Crie um Web Service apontando para esta pasta `ml-proxy`.
 2. Runtime: Node 18+.
 3. Command: `npm start`
-4. Defina a variável `PORT` (Render fornece automaticamente, apenas herde).
+4. Defina as variáveis:
+   - `PORT` (Render fornece automaticamente, apenas herde)
+   - `ALLOWED_ORIGINS` (se precisar liberar domínios além de `https://zyra-drab.vercel.app`, `https://zyra-lorenzomarty-9203s-projects.vercel.app`, `http://localhost:3000`)
 
 ## Configuração do frontend
 Defina `NEXT_PUBLIC_PROXY_BASE_URL` com a URL pública do serviço (ex: `https://seu-servico.onrender.com`).

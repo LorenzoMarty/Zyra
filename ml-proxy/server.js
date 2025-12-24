@@ -3,9 +3,15 @@ import cors from "cors";
 
 const app = express();
 
+const envAllowed = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : [];
+
 const ALLOWED_ORIGINS = [
   "https://zyra-drab.vercel.app",
-  "http://localhost:3000"
+  "https://zyra-lorenzomarty-9203s-projects.vercel.app",
+  "http://localhost:3000",
+  ...envAllowed
 ];
 
 app.use(
