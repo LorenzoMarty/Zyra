@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const preferredRegion = "gru1";
+
 const SEARCH_URL = "https://api.mercadolibre.com/sites/MLB/search";
 
 type MlItem = {
@@ -38,7 +41,8 @@ export async function GET(req: Request) {
     const response = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, {
       headers: {
         Accept: "application/json",
-        "User-Agent": "ZyraAffiliateSearch/1.0"
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; ZyraBot/1.0; +https://zyra-drab.vercel.app)"
       },
       cache: "no-store"
     });
