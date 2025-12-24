@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import SearchBar from "@/components/SearchBar";
 import CategoryNav from "@/components/CategoryNav";

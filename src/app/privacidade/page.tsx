@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 export default function PrivacidadePage() {
   return (
     <main className="mx-auto w-full max-w-4xl px-4 py-12">
