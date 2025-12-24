@@ -3,7 +3,9 @@ const nextConfig = {
   allowedDevOrigins: [
     "https://nondefectively-available-len.ngrok-free.dev",
     "http://nondefectively-available-len.ngrok-free.dev",
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "https://zyra-drab.vercel.app",
+    "https://zyra-lorenzomarty-9203s-projects.vercel.app"
   ],
   images: {
     remotePatterns: [
