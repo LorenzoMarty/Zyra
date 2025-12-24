@@ -1,5 +1,8 @@
 ﻿import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const preferredRegion = "gru1";
+
 const TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 
 function jsonError(message: string, status: number, details?: Record<string, unknown>) {
