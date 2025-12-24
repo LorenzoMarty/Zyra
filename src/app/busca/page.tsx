@@ -34,6 +34,8 @@ function formatPrice(value: number, currency: string) {
 }
 
 function BuscaContent() {
+  const proxyBase = process.env.NEXT_PUBLIC_PROXY_BASE_URL;
+  const searchEndpointBase = proxyBase || "/api/ml";
   const params = useSearchParams();
   const initialQuery = params.get("q") || "iphone";
 
@@ -47,7 +49,7 @@ function BuscaContent() {
     setError(null);
 
     try {
-      const response = await fetch(`/api/ml/search?q=${encodeURIComponent(term)}`);
+      const response = await fetch(`${searchEndpointBase}/search?q=${encodeURIComponent(term)}`);
       const data = (await response.json()) as SearchResponse;
 
       if (!response.ok || !data.ok) {
