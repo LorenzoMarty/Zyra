@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
+import { Suspense } from "react";
 import SearchBar from "@/components/SearchBar";
 import CategoryNav from "@/components/CategoryNav";
 import ProductGrid from "@/components/ProductGrid";
@@ -25,7 +26,9 @@ export default async function HomePage() {
               <p className="text-sm text-slate-500">
                 Você encontra produtos do Mercado Livre aqui e finaliza o pagamento direto na plataforma oficial.
               </p>
-              <SearchBar size="lg" />
+              <Suspense fallback={<div className="h-14 rounded-2xl bg-mist" />}>
+                <SearchBar size="lg" />
+              </Suspense>
               <div className="flex flex-wrap gap-2 text-xs text-slate-500">
                 <span className="rounded-full bg-brand-50 px-3 py-1 text-brand-700">
                   Fonte: Mercado Livre

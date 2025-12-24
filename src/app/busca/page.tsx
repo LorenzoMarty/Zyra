@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { buildAffiliateUrl } from "@/lib/affiliate";
 
@@ -33,7 +33,7 @@ function formatPrice(value: number, currency: string) {
   }
 }
 
-export default function BuscaPage() {
+function BuscaContent() {
   const params = useSearchParams();
   const initialQuery = params.get("q") || "iphone";
 
@@ -150,5 +150,14 @@ export default function BuscaPage() {
         ))}
       </div>
     </main>
+  );
+}
+
+
+export default function BuscaPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto w-full max-w-5xl px-4 py-12"><p className="text-sm text-slate-500">Carregando busca...</p></main>}>
+      <BuscaContent />
+    </Suspense>
   );
 }

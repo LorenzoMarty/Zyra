@@ -1,4 +1,5 @@
-﻿import Link from "next/link";
+import Link from "next/link";
+import { Suspense } from "react";
 import SearchBar from "@/components/SearchBar";
 import CartDrawer from "@/components/CartDrawer";
 
@@ -21,7 +22,9 @@ export default function Header() {
             </span>
           </div>
           <div className="hidden w-full max-w-xl md:block md:justify-self-center">
-            <SearchBar size="sm" />
+            <Suspense fallback={<div className="h-11 rounded-xl bg-mist" />}>
+              <SearchBar size="sm" />
+            </Suspense>
           </div>
           <div className="flex items-center gap-3 md:gap-4 md:justify-self-end">
             <nav className="hidden items-center gap-4 text-sm text-slate-600 md:flex">
@@ -42,7 +45,9 @@ export default function Header() {
           </div>
         </div>
         <div className="px-4 pb-4 md:hidden">
-          <SearchBar size="sm" />
+          <Suspense fallback={<div className="h-11 rounded-xl bg-mist" />}>
+            <SearchBar size="sm" />
+          </Suspense>
         </div>
       </div>
     </header>
