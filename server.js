@@ -25,6 +25,7 @@ app.get("/", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
+  console.log("[health]");
   res.json({ ok: true });
 });
 
