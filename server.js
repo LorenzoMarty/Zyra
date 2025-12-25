@@ -3,7 +3,6 @@ import cors from "cors";
 
 const ALLOWED_ORIGINS = new Set([
   "https://zyra-drab.vercel.app",
-  "https://pink-vulture-671333.hostingersite.com",
   "http://localhost:3000"
 ]);
 
@@ -45,19 +44,29 @@ function normalizeItems(data) {
   }));
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isNaN(parsed) || parsed < 0) return fallback;
+  return parsed;
+}
+
 app.get("/search", async (req, res) => {
   const q = (req.query.q || "iphone").toString();
-  console.log(`[search] q=${q}`);
+  const offset = parsePositiveInt(req.query.offset, 0);
+  const limit = parsePositiveInt(req.query.limit, 24);
+  console.log(`[search] q=${q} offset=${offset} limit=${limit}`);
 
   const url = new URL("https://api.mercadolibre.com/sites/MLB/search");
   url.searchParams.set("q", q);
+  url.searchParams.set("offset", String(offset));
+  url.searchParams.set("limit", String(limit));
 
   try {
     const response = await fetch(url.toString(), {
       headers: {
         Accept: "application/json",
-        "Accept-Language": "pt-BR,pt;q=0.9",
-        "User-Agent": "Mozilla/5.0 (compatible; ZyraBot/1.0)"
+        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; ZyraProxy/1.0)"
       }
     });
 
@@ -66,17 +75,21 @@ app.get("/search", async (req, res) => {
     try {
       data = raw ? JSON.parse(raw) : {};
     } catch {
-      data = { raw };
+      data = raw;
     }
 
     if (!response.ok) {
-      return res
-        .status(response.status)
-        .json({ ok: false, status: response.status, data });
+      return res.status(response.status).json({ ok: false, status: response.status, data });
     }
 
     const items = normalizeItems(data);
-    return res.json({ ok: true, q, items });
+    const paging = {
+      total: Number(data?.paging?.total ?? items.length) || 0,
+      offset: Number(data?.paging?.offset ?? offset) || 0,
+      limit: Number(data?.paging?.limit ?? limit) || limit
+    };
+
+    return res.json({ ok: true, q, paging, items });
   } catch (error) {
     return res.status(500).json({ ok: false, error: error?.message || "unknown_error" });
   }
