@@ -1,8 +1,10 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import express from "express";
 import cors from "cors";
 
 const ALLOWED_ORIGINS = new Set([
-  "https://zyra-drab.vercel.app",
+  "https://pink-vulture-671333.hostingersite.com",
   "http://localhost:3000"
 ]);
 
@@ -19,13 +21,15 @@ app.use(
   })
 );
 
+app.use(express.static("public"));
+
 app.get("/", (_req, res) => {
   res.type("text/plain").send("API OK");
 });
 
 app.get("/health", (_req, res) => {
   console.log("[health]");
-  res.json({ ok: true });
+  res.json({ status: "ok" });
 });
 
 function normalizeImage(url = "") {
@@ -51,7 +55,11 @@ function parsePositiveInt(value, fallback) {
 }
 
 app.get("/search", async (req, res) => {
-  const q = (req.query.q || "iphone").toString();
+  const rawQ = req.query.q;
+  if (!rawQ) {
+    return res.status(400).json({ error: "query missing" });
+  }
+  const q = rawQ.toString();
   const offset = parsePositiveInt(req.query.offset, 0);
   const limit = parsePositiveInt(req.query.limit, 24);
   console.log(`[search] q=${q} offset=${offset} limit=${limit}`);
@@ -92,6 +100,16 @@ app.get("/search", async (req, res) => {
     return res.json({ ok: true, q, paging, items });
   } catch (error) {
     return res.status(500).json({ ok: false, error: error?.message || "unknown_error" });
+  }
+});
+
+app.get("*", async (_req, res, next) => {
+  const indexPath = path.join(process.cwd(), "public", "index.html");
+  try {
+    const html = await fs.readFile(indexPath, "utf8");
+    res.type("html").send(html);
+  } catch {
+    next();
   }
 });
 
