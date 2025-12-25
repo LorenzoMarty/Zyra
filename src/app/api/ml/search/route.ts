@@ -1,104 +1,98 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+
+import { MlSearchError, searchMl } from "@/lib/ml/search";
+import type { MlSearchResponse } from "@/lib/ml/types";
 
 export const runtime = "nodejs";
 export const preferredRegion = "gru1";
 
-const SEARCH_URL = "https://api.mercadolibre.com/sites/MLB/search";
+const DEFAULT_LIMIT = 12;
+const CACHE_TTL_MS = 60_000;
 
-type MlItem = {
-  id: string;
-  title: string;
-  price: number;
-  currency_id: string;
-  thumbnail: string;
-  permalink: string;
+type CacheEntry = {
+  expiresAt: number;
+  value: MlSearchResponse;
 };
 
-function normalizeImageUrl(url?: string): string {
-  if (!url) {
-    return "";
+const memoryCache = new Map<string, CacheEntry>();
+
+function parseNumberParam(value: string | null, fallback: number): number {
+  const parsed = Number(value ?? fallback);
+  if (Number.isNaN(parsed) || parsed < 0) {
+    return fallback;
   }
-  return url.startsWith("http://") ? url.replace("http://", "https://") : url;
+  return parsed;
 }
 
-function pickItems(data: Record<string, any>): MlItem[] {
-  const results = Array.isArray(data.results) ? data.results : [];
-  return results.map((item: Record<string, any>) => ({
-    id: String(item.id),
-    title: item.title || "",
-    price: Number(item.price) || 0,
-    currency_id: item.currency_id || "BRL",
-    thumbnail: normalizeImageUrl(item.thumbnail),
-    permalink: item.permalink || ""
-  }));
+function cacheKey(q: string, offset: number, limit: number) {
+  return `${q}::${offset}::${limit}`;
+}
+
+function getFromCache(key: string) {
+  const entry = memoryCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    memoryCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCache(key: string, value: MlSearchResponse) {
+  memoryCache.set(key, {
+    expiresAt: Date.now() + CACHE_TTL_MS,
+    value
+  });
 }
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q")?.trim() || "iphone";
+  const q = searchParams.get("q")?.trim() || "";
+  const offset = parseNumberParam(searchParams.get("offset"), 0);
+  const limit = parseNumberParam(searchParams.get("limit"), DEFAULT_LIMIT);
+
+  if (!q) {
+    return NextResponse.json(
+      { ok: false, error: "missing_query", status: 400 },
+      { status: 400, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  const key = cacheKey(q, offset, limit);
+  const cached = getFromCache(key);
+  if (cached) {
+    return NextResponse.json(
+      { ok: true, items: cached.items, paging: cached.paging },
+      { headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
   try {
-    const response = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, {
-      headers: {
-        Accept: "application/json",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-        "User-Agent": "Mozilla/5.0 (compatible; ZyraBot/1.0; +https://zyra-drab.vercel.app)"
-      },
-      cache: "no-store"
-    });
-
-    if (response.status === 403) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Busca temporariamente indisponível nesta rede. Tente novamente mais tarde.",
-          status: 403
-        },
-        {
-          status: 403,
-          headers: { "Cache-Control": "no-store" }
-        }
-      );
-    }
-
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Não foi possível buscar produtos agora.",
-          status: response.status
-        },
-        {
-          status: response.status,
-          headers: { "Cache-Control": "no-store" }
-        }
-      );
-    }
-
-    const data = (await response.json()) as Record<string, any>;
-    const items = pickItems(data);
+    const result = await searchMl(q, offset, limit);
+    setCache(key, result);
 
     return NextResponse.json(
-      {
-        ok: true,
-        q,
-        items
-      },
-      {
-        headers: { "Cache-Control": "no-store" }
-      }
+      { ok: true, items: result.items, paging: result.paging },
+      { headers: { "Cache-Control": "no-store" } }
     );
   } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Erro inesperado ao buscar produtos.",
-        status: 500
-      },
-      {
-        status: 500,
-        headers: { "Cache-Control": "no-store" }
+    if (error instanceof MlSearchError) {
+      if (error.status === 403) {
+        return NextResponse.json(
+          { ok: false, error: "forbidden", status: 403 },
+          { status: 403, headers: { "Cache-Control": "no-store" } }
+        );
       }
+
+      return NextResponse.json(
+        { ok: false, error: "upstream_error", status: error.status },
+        { status: error.status || 500, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    return NextResponse.json(
+      { ok: false, error: "unexpected_error", status: 500 },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
