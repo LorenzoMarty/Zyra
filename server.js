@@ -3,10 +3,18 @@ import path from "node:path";
 import express from "express";
 import cors from "cors";
 
+const DEFAULT_HEADERS = {
+  Accept: "application/json",
+  "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+};
+
 const ALLOWED_ORIGINS = new Set([
   "https://pink-vulture-671333.hostingersite.com",
   "http://localhost:3000"
 ]);
+
+const TOKEN_URL = "https://api.mercadolibre.com/oauth/token";
 
 const app = express();
 
@@ -54,6 +62,88 @@ function parsePositiveInt(value, fallback) {
   return parsed;
 }
 
+let cachedAccessToken = process.env.ML_ACCESS_TOKEN;
+let cachedRefreshToken = process.env.ML_REFRESH_TOKEN;
+
+function buildMlHeaders(token) {
+  return {
+    ...DEFAULT_HEADERS,
+    ...(token ? { Authorization: `Bearer ${token}` } : {})
+  };
+}
+
+async function refreshAccessToken() {
+  if (
+    !cachedRefreshToken ||
+    !process.env.MELI_CLIENT_ID ||
+    !process.env.MELI_CLIENT_SECRET
+  ) {
+    return null;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: process.env.MELI_CLIENT_ID,
+    client_secret: process.env.MELI_CLIENT_SECRET,
+    refresh_token: cachedRefreshToken
+  });
+
+  try {
+    const response = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json"
+      },
+      body: body.toString(),
+      cache: "no-store"
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data?.access_token) {
+      console.warn("[ml-refresh] failed to refresh token", data);
+      return null;
+    }
+
+    cachedAccessToken = data.access_token;
+    cachedRefreshToken = data.refresh_token || cachedRefreshToken;
+    console.log("[ml-refresh] token refreshed");
+    return cachedAccessToken;
+  } catch (error) {
+    console.warn("[ml-refresh] unexpected error", error);
+    return null;
+  }
+}
+
+async function fetchMercadoLivre(url) {
+  let token = cachedAccessToken;
+  let response = await fetch(url, {
+    headers: buildMlHeaders(token),
+    cache: "no-store"
+  });
+
+  if (response.status === 401 || response.status === 403) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      token = refreshed;
+      response = await fetch(url, {
+        headers: buildMlHeaders(token),
+        cache: "no-store"
+      });
+    }
+  }
+
+  if ((response.status === 401 || response.status === 403) && token) {
+    response = await fetch(url, {
+      headers: buildMlHeaders(null),
+      cache: "no-store"
+    });
+  }
+
+  return response;
+}
+
 app.get("/search", async (req, res) => {
   const rawQ = req.query.q;
   if (!rawQ) {
@@ -70,13 +160,7 @@ app.get("/search", async (req, res) => {
   url.searchParams.set("limit", String(limit));
 
   try {
-    const response = await fetch(url.toString(), {
-      headers: {
-        Accept: "application/json",
-        "Accept-Language": "pt-BR,pt;q=0.9,en;q=0.8",
-        "User-Agent": "Mozilla/5.0 (compatible; ZyraProxy/1.0)"
-      }
-    });
+    const response = await fetchMercadoLivre(url.toString());
 
     const raw = await response.text();
     let data;
